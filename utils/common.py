@@ -1,6 +1,7 @@
 import json
-
 import pandas as pd
+from matplotlib import pyplot as plt
+import seaborn as sns
 
 
 # def load_data(file_path):
@@ -43,17 +44,25 @@ def translation(data):
         "YearsSinceLastPromotion": "距上次晋升年限",
         "YearsWithCurrManager": "与现任主管共事年限"
     }
-        # 翻译列名
+    # 翻译列名
     data.columns = [employee_field_mapping.get(col, col) for col in data.columns]
     # print(data.head())
 
-
+# 保存look_dict到json文件
 def save_dict_to_json(dict, file_path):
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(dict, f, ensure_ascii=False, indent=4)
 
 
-# if __name__ == '__main__':
+def ps(data):
+    numerical_cols = data.select_dtypes(include=['int64', 'float64']).columns.drop('EmployeeNumber')
+    corr_matrix = data[numerical_cols].corr()
+    plt.figure(figsize=(12,10))
+    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap='coolwarm')
+    plt.title('Correlation Matrix')
+    plt.show()
+
+if __name__ == '__main__':
     # load_data('../data/train.csv')
     # load_data('../data/test2.csv')
-
+    ps(pd.read_csv('../data/train.csv').drop(columns=['StandardHours']))

@@ -1,12 +1,9 @@
 import json
 import os
-import time
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
-from sklearn.ensemble import RandomForestRegressor, AdaBoostClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 
@@ -21,29 +18,28 @@ import joblib
 
 
 
-class PowerLeaveModel(object):
-    def __init__(self, filename):
-        # 配置日志记录
-        logfile_name = "train_" + datetime.datetime.now().strftime('%Y%m%d%H')
-        self.logfile = Logger('../../', logfile_name).get_logger()
-        # 获取数据源
-        # self.data_source = load_data(filename)
+# class PowerLeavePredict(object):
+#     def __init__(self, filename):
+#         # 配置日志记录
+#         logfile_name = "train_" + datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+#         self.logfile = Logger('../../', logfile_name).get_logger()
+#         # 获取数据源
+#         # self.data_source = load_data(filename)
+
 
 def data_analysis(data):
     # 看数据
     # 去掉EmployeeNumber、Over18、StandardHours这几个无效列
-    data.drop(['EmployeeNumber','Over18', 'StandardHours'], axis=1, inplace=True)
-
+    data.drop(['EmployeeNumber', 'Over18', 'StandardHours'], axis=1, inplace=True)
 
     # print(data.info())
     # print(data.describe())
     # print(data.isnull().sum())
 
-
     return data
 
-
     # print(data.info())
+
 
 def feature_engineering(data):
     # 特征工程
@@ -61,9 +57,9 @@ def feature_engineering(data):
     # 晋升频率
     df['promotion_frequency'] = df['YearsSinceLastPromotion'] / (df['YearsAtCompany'] + 1e-5)
 
-
     # 出差频率编码
-    df['business_travel_encoded'] = df['BusinessTravel'].map({'Travel_Rarely': 2, 'Travel_Frequently': 1, 'Non-Travel': 0}).fillna(0)
+    df['business_travel_encoded'] = df['BusinessTravel'].map(
+        {'Travel_Rarely': 2, 'Travel_Frequently': 1, 'Non-Travel': 0}).fillna(0)
     # 加班情况编码
     df['overtime_encoded'] = df['OverTime'].map({'Yes': 1, 'No': 0}).fillna(0)
     # 出差加班负荷
@@ -81,7 +77,8 @@ def feature_engineering(data):
     df['stock_option_level_match'] = (df['StockOptionLevel'] / (df['JobLevel'] + 1e-5)) * df['YearsAtCompany']
 
     # 整体满意度
-    df['avg_overall_satisfaction'] = (df['EnvironmentSatisfaction'] + df['JobSatisfaction'] + df['RelationshipSatisfaction'] + df['WorkLifeBalance']) / 4
+    df['avg_overall_satisfaction'] = (df['EnvironmentSatisfaction'] + df['JobSatisfaction'] + df[
+        'RelationshipSatisfaction'] + df['WorkLifeBalance']) / 4
     # print(df['avg_overall_satisfaction'].head(20))
 
     # 培训晋升匹配度
@@ -94,7 +91,7 @@ def feature_engineering(data):
     # 性别编码
     df['gender_encoded'] = df['Gender'].map({'Male': 0, 'Female': 1}).fillna(0)
     # 婚姻状况编码
-    df['marital_status_encoded'] = df['MaritalStatus'].map({'Single': 0, 'Married': 1, 'Divorced': 2  }).fillna(0)
+    df['marital_status_encoded'] = df['MaritalStatus'].map({'Single': 0, 'Married': 1, 'Divorced': 2}).fillna(0)
 
     # 人员流失（离职状态）编码
     # df['Attrition'] = df['Attrition'].map({'Yes': 1, 'No': 0})  # 将 Yes/No 转换为 1/0
@@ -104,7 +101,6 @@ def feature_engineering(data):
     # 性别    df['Gender']
     # 距离    df['DistanceFromHome']
     # 受教育程度  df['Education']
-
 
     # 岗位角色编码
     # job_role_encoded = df['JobRole'].map({
@@ -143,8 +139,7 @@ def feature_engineering(data):
 
     return new_df
 
-
-def model_train(data, logger):
+def model_pred(data):
     # 模型训练
     # 划分特征和目标变量
     x = data.drop('Attrition', axis=1)
@@ -155,6 +150,8 @@ def model_train(data, logger):
     # print(y.head(20))
     x = x.astype('float64')
     y = y.astype('int')
+    # 划分训练集和测试集
+    # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
     # 初始化XGBoost模型
     # model = XGBClassifier(random_state=42,
     #     eval_metric='auc',
@@ -163,45 +160,19 @@ def model_train(data, logger):
     #     learning_rate=0.1,
     #     max_depth=6)
     # model = KNeighborsClassifier()
-    # 划分训练集和测试集
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, stratify=y)
-
-    start_time = time.time()
-    param_dict = {
-        'n_estimators': [i for i in range(0, 500, 10)],
-        'max_depth': [i for i in range(0, 10)],
-        'learning_rate': [0.01, 0.02, 0.05],
-        # 'subsample': [0.85],  # 行采样
-        # 'colsample_bytree': [0.85],  # 列采样
-        'gamma': [0.1, 0.2],  # 分裂所需最小损失减少
-        # 'reg_alpha': [0.5],  # L1 正则（特征稀疏）
-        # 'reg_lambda': [1.5],  # L2 正则（权重平滑）
-
-    }
-    # estimator = XGBClassifier(random_state=42, eval_metric='auc')
-    # grid_search = GridSearchCV(estimator, param_grid=param_dict, cv=5)
-    # transfer = StandardScaler()
-    # x_train = transfer.fit_transform(x_train)
-    # x_test = transfer.transform(x_test)
-    # grid_search.fit(x_train, y_train)
-    # print(f'最佳参数: {grid_search.best_params_}')
-    # logger.info(f'最佳参数: {grid_search.best_params_}')
-    # joblib.dump(grid_search, f'../../model/{estimator.__class__.__name__}_model.pth')
-    # end_time = time.time()
-    # logger.info(f'训练时间: {end_time - start_time}')
-
-    # {'gamma': 0.1, 'learning_rate': 0.05, 'max_depth': 1, 'n_estimators': 240}
-
-
-    estimator = XGBClassifier(random_state=42, eval_metric='auc',learning_rate=0.05, gamma=0.1,max_depth=1,n_estimators=240)
-    estimator.fit(x_train, y_train)
-    joblib.dump(estimator, f'../../model/{estimator.__class__.__name__}_model.pth')
+    # 训练模型
+    # model.fit(x_train, y_train)
+    # 保存模型
+    # joblib.dump(model, '../../model/xgb_model.pth')
 
     # 模型评估
     # 预测测试集
-    model = joblib.load(f'../../model/{estimator.__class__.__name__}_model.pth')
-    y_pred_proba = model.predict_proba(x_test)[:, 1]  # 获取正类别的概率
-    y_pred = model.predict(x_test)
+    # transfer = StandardScaler()
+    # x = transfer.fit_transform(x)
+
+    model = joblib.load(f'../../model/XGBClassifier_model.pth')
+    y_pred_proba = model.predict_proba(x)[:, 1]  # 获取正类别的概率
+    y_pred = model.predict(x)
     print(y_pred_proba)
     print(y_pred)
 
@@ -211,36 +182,18 @@ def model_train(data, logger):
     # print(f"Mean Squared Error: {mse}")
     # print(f"Mean Absolute Error: {mae}")
     # AUC
-    auc = roc_auc_score(y_test, y_pred_proba)
+    auc = roc_auc_score(y, y_pred_proba)
     print(f"AUC: {auc}")
 
-if __name__ == '__main__':  
+if __name__ == '__main__':
     # 日志配置、数据源获取
-    input_file = os.path.join('../../data', 'train.csv')
-    train_logger = PowerLeaveModel(input_file)
+
     # 数据分析
-    data_analysed = data_analysis(pd.read_csv(input_file))
+    data_analysed = data_analysis(pd.read_csv("../../data/test2.csv"))
     # data_analysis(pd.read_csv("../../data/test2.csv"))
 
     # 特征工程
     fea_df = feature_engineering(data_analysed)
 
     # 模型训练 评估、保存
-    model_train(fea_df, train_logger.logfile)
-
-    # # 翻译列名
-    # translation(data_analysed)
-    # # 保存look_dict到json文件
-    # look_dict = {}
-    # for col in data_analysed.columns:
-    #     print(data_analysed[col].value_counts())
-    #     look_dict[col] = data_analysed[col].value_counts().to_dict()
-    # save_dict_to_json(look_dict, '../../data/look_dict.json')
-    # # 查看look_dict.json文件中的月收入的最大最小值 19999 1009
-    # js = json.load(open('../../data/look_dict.json', 'r', encoding='utf-8'))
-    # l = []
-    # for key, value in js['月收入'].items():
-    #     l.append(int(key))
-    # print(max(l))       # 19999
-    # print(min(l))       # 1009
-
+    model_pred(fea_df)
